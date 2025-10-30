@@ -29,8 +29,7 @@ make -j$(nproc --all) O=out \
 function zipping()
 {
 rm -rf AnyKernel
-git clone --depth=1 https://github.com/sarthakroy2002/AnyKernel3.git AnyKernel
-git clone --depth=1 https://github.com/szyryjn/AnyKernel3.git AnyKernel
+git clone --depth=1 https://github.com/muhammmadnantaa-hub/AnyKernel.git AnyKernel
 cp out/arch/arm64/boot/Image.gz-dtb AnyKernel
 cd AnyKernel
 zip -r9 Test-OSS-KERNEL-RMX2020-NEOLIT.zip *
