@@ -89,7 +89,7 @@ function zipping()
     gzip -c Image > Image.gz
     cat Image.gz dtb > Image.gz-dtb
     rm -rf Image Image.gz dtb
-    zip -r9 ("$KERNEL_NAME") *
+    zip -r9 "$KERNEL_NAME" *
 }
 
 compile
