@@ -10,6 +10,9 @@ BUILD_TYPE="adit"
 DATE="$(TZ=Asia/Jakarta date +%Y%m%d%H%M%S)"
 KERNEL_NAME="fix${BUILD_TYPE}-${DATE}.zip"
 
+# Clone SukiSU repo
+if [ ! -d "KernelSU" ]; then curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main; fi
+
 function KERNEL_COMPILE() {
 	if [ "$1" == "install" ]; then
 		# Download required package
@@ -20,9 +23,6 @@ function KERNEL_COMPILE() {
 	export USE_CCACHE=1
 	export KBUILD_BUILD_HOST=builder
 	export KBUILD_BUILD_USER=Nntazho
-
-# Clone SukiSU repo
-if [ ! -d "KernelSU" ]; then curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main; fi
 
 	# Create output directory and do a clean build
 	rm -rf out && mkdir -p out
