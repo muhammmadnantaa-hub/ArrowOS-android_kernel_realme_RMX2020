@@ -25,13 +25,7 @@ function KERNEL_COMPILE() {
 	export KBUILD_BUILD_USER=Nntazho
 
 	# Create output directory and do a clean build
-	rm -rf out && mkdir -p out
-
-	# Download clang if not present
-	if [[ ! -d "clang" ]]; then mkdir -p clang
-		wget https://github.com/Impqxr/aosp_clang_ci/releases/download/13289611/clang-13289611-linux-x86.tar.xz -O clang.tar.gz
-		tar -xf clang.tar.gz -C clang && if [ -d clang/clang-* ]; then mv clang/clang-*/* clang; fi && rm -rf clang.tar.gz
-	fi
+	rm -rf out && mkdir -p
 
 	# Add clang bin directory to PATH
 	export PATH="${PWD}/Alchemist-LLVM/bin:$PATH"
