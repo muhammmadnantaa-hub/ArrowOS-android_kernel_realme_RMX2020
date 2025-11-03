@@ -123,7 +123,7 @@ extern int sysctl_nr_trim_pages;
 
 /* Constants used for minimum and  maximum */
 #ifdef CONFIG_LOCKUP_DETECTOR
-static int sixty = 60;
+static int sixty = 200;
 #endif
 
 static int __maybe_unused neg_one = -1;
