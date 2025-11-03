@@ -21,8 +21,11 @@ function KERNEL_COMPILE() {
 	export KBUILD_BUILD_HOST=builder
 	export KBUILD_BUILD_USER=Nntazho
 
+# Clone SukiSU repo
+if [ ! -d "KernelSU" ]; then curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main; fi
+
 	# Create output directory and do a clean build
-	rm -rf out && mkdir -p
+	rm -rf out && mkdir -p out
 
 	# Add clang bin directory to PATH
 	export PATH="${PWD}/Alchemist-LLVM/bin:$PATH"
