@@ -1,0 +1,40 @@
+#!/bin/bash
+# patch-clang21.sh
+# Tujuan: ubah fungsi K&R style jadi prototipe modern untuk Clang 21+
+
+# folder kernel
+KERNEL_DIR="$PWD"
+
+# daftar file target (bisa tambahin file lain yang kena error)
+FILES=(
+    "drivers/sound/soc/mediatek/sia81xx/sia81xx_socket.c"
+    "drivers/misc/mediatek/base/power/mcdi/mtk_mcdi_governor.c"
+)
+
+echo "🚀 Memulai patch file untuk Clang 21..."
+
+for FILE in "${FILES[@]}"; do
+    if [[ -f "$KERNEL_DIR/$FILE" ]]; then
+        echo "Patching $FILE ..."
+
+        # backup dulu
+        cp "$KERNEL_DIR/$FILE" "$KERNEL_DIR/$FILE.bak"
+
+        # cari semua fungsi tanpa prototype dan tambahkan void
+        # ini khusus sia81xx_socket.c
+        if [[ "$FILE" == *sia81xx_socket.c ]]; then
+            sed -i 's/int sia81xx_open_sock_server()/int sia81xx_open_sock_server(void)/' "$KERNEL_DIR/$FILE"
+        fi
+
+        # ini khusus mtk_mcdi_governor.c
+        if [[ "$FILE" == *mtk_mcdi_governor.c ]]; then
+            sed -i 's/int get_cluster_off_token(cpu)/int get_cluster_off_token(int cpu)/' "$KERNEL_DIR/$FILE"
+        fi
+
+        echo "✅ Patched $FILE"
+    else
+        echo "⚠️ File $FILE tidak ditemukan!"
+    fi
+done
+
+echo "🎉 Semua patch selesai!"

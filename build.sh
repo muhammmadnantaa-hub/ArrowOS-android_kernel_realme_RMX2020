@@ -6,9 +6,9 @@ set -e
 KERNEL_PATH=out/arch/arm64/boot
 
 # Set kernel name
-BUILD_TYPE="SUKISU"
+BUILD_TYPE="adit"
 DATE="$(TZ=Asia/Jakarta date +%Y%m%d%H%M%S)"
-KERNEL_NAME="SukiSuA16${BUILD_TYPE}-${DATE}.zip"
+KERNEL_NAME="fix${BUILD_TYPE}-${DATE}.zip"
 
 # Clone SukiSU repo
 if [ ! -d "KernelSU" ]; then curl -LSs "https://raw.githubusercontent.com/kernel-build-from-rainyland/KernelSU-Next/next/kernel/setup.sh" | bash -s next; fi
