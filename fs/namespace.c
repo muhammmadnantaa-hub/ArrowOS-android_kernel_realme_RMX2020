@@ -21,6 +21,7 @@
 #include <linux/fs_struct.h>	/* get_fs_root et.al. */
 #include <linux/fsnotify.h>	/* fsnotify_vfsmount_delete */
 #include <linux/uaccess.h>
+#include <linux/file.h>
 #include <linux/proc_ns.h>
 #include <linux/magic.h>
 #include <linux/bootmem.h>
@@ -1398,6 +1399,12 @@ static void delayed_mntput(struct work_struct *unused)
 }
 static DECLARE_DELAYED_WORK(delayed_mntput_work, delayed_mntput);
 
+void flush_delayed_mntput_wait(void)
+{
+	delayed_mntput(NULL);
+	flush_delayed_work(&delayed_mntput_work);
+}
+
 static void mntput_no_expire(struct mount *mnt)
 {
 	rcu_read_lock();
@@ -1642,7 +1649,7 @@ static void namespace_unlock(void)
 	if (likely(hlist_empty(&head)))
 		return;
 
-	synchronize_rcu_expedited();
+	synchronize_rcu();
 
 	group_pin_kill(&head);
 }
@@ -1845,6 +1852,8 @@ static int do_umount(struct mount *mnt, int flags)
 out:
 	unlock_mount_hash();
 	namespace_unlock();
+	if (retval == -EBUSY)
+		global_filetable_delayed_print(mnt);
 	return retval;
 }
 
@@ -1909,6 +1918,39 @@ static inline bool may_mandlock(void)
 }
 #endif
 
+static int can_umount(const struct path *path, int flags)
+{
+	struct mount *mnt = real_mount(path->mnt);
+
+	if (!may_mount())
+		return -EPERM;
+	if (path->dentry != path->mnt->mnt_root)
+		return -EINVAL;
+	if (!check_mnt(mnt))
+		return -EINVAL;
+	if (mnt->mnt.mnt_flags & MNT_LOCKED) /* Check optimistically */
+		return -EINVAL;
+	if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	return 0;
+}
+
+// caller is responsible for flags being sane
+int path_umount(struct path *path, int flags)
+{
+	struct mount *mnt = real_mount(path->mnt);
+	int ret;
+
+	ret = can_umount(path, flags);
+	if (!ret)
+		ret = do_umount(mnt, flags);
+
+	/* we mustn't call path_put() as that would clear mnt_expiry_mark */
+	dput(path->dentry);
+	mntput_no_expire(mnt);
+	return ret;
+}
+
 /*
  * Now umount can handle mount points as well as block devices.
  * This is important for filesystems which use unnamed block devices.
@@ -1923,6 +1965,7 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 	struct mount *mnt;
 	int retval;
 	int lookup_flags = 0;
+	bool user_request = !(current->flags & PF_KTHREAD);
 
 	if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
 		return -EINVAL;
@@ -1948,11 +1991,36 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 	if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
 		goto dput_and_out;
 
+	/* flush delayed_fput to put mnt_count */
+	if (user_request)
+		flush_delayed_fput_wait();
+
 	retval = do_umount(mnt, flags);
 dput_and_out:
 	/* we mustn't call path_put() as that would clear mnt_expiry_mark */
 	dput(path.dentry);
+	if (user_request && (!retval || (flags & MNT_FORCE))) {
+		/* filesystem needs to handle unclosed namespaces */
+		if (mnt->mnt.mnt_sb->s_op->umount_end)
+			mnt->mnt.mnt_sb->s_op->umount_end(mnt->mnt.mnt_sb,
+					flags);
+	}
 	mntput_no_expire(mnt);
+
+	if (!user_request)
+		goto out;
+
+	if (!retval) {
+		/*
+		 * If the last delayed_fput() is called during do_umount()
+		 * and makes mnt_count zero, we need to guarantee to register
+		 * delayed_mntput by waiting for delayed_fput work again.
+		 */
+		flush_delayed_fput_wait();
+
+		/* flush delayed_mntput_work to put sb->s_active */
+		flush_delayed_mntput_wait();
+	}
 out:
 	return retval;
 }
@@ -1968,36 +2036,6 @@ SYSCALL_DEFINE1(oldumount, char __user *, name)
 }
 
 #endif
-
-static int can_umount(const struct path *path, int flags)
- {
-	 struct mount *mnt = real_mount(path->mnt);
-	 if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
-		 return -EINVAL;
-	 if (!may_mount())
-		 return -EPERM;
-	 if (path->dentry != path->mnt->mnt_root)
-		 return -EINVAL;
-	 if (!check_mnt(mnt))
-		 return -EINVAL;
-	 if (mnt->mnt.mnt_flags & MNT_LOCKED)
-		 return -EINVAL;
-	 if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
-		 return -EPERM;
-	 return 0;
- }
-
-int path_umount(struct path *path, int flags)
- {
-	 struct mount *mnt = real_mount(path->mnt);
-	 int ret;
-	 ret = can_umount(path, flags);
-	 if (!ret)
-		 ret = do_umount(mnt, flags);
-	 dput(path->dentry);
-	 mntput_no_expire(mnt);
-	 return ret;
- }
 
 static bool is_mnt_ns_file(struct dentry *dentry)
 {
@@ -2076,7 +2114,7 @@ struct mount *copy_tree(struct mount *mnt, struct dentry *dentry,
 				goto out;
 			lock_mount_hash();
 			list_add_tail(&q->mnt_list, &res->mnt_list);
-			attach_mnt(q, parent, p->mnt_mp);
+			attach_mnt(q, parent, p->mnt_mp);			
 			unlock_mount_hash();
 		}
 	}
@@ -2539,26 +2577,6 @@ static int do_loopback(struct path *path, const char *old_name,
 		umount_tree(mnt, UMOUNT_SYNC);
 		unlock_mount_hash();
 	}
-#if defined(CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT) || defined(CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT)
-	// Check if bind mounted path should be hidden and umounted automatically.
-	// And we target only process with ksu domain.
-	if (susfs_is_current_ksu_domain()) {
-#if defined(CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT)
-		if (susfs_is_auto_add_sus_bind_mount_enabled &&
-				susfs_auto_add_sus_bind_mount(old_name, &old_path)) {
-			goto orig_flow;
-		}
-#endif
-#if defined(CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT)
-		if (susfs_is_auto_add_try_umount_for_bind_mount_enabled) {
-			susfs_auto_add_try_umount_for_bind_mount(path);
-		}
-#endif
-	}
-#if defined(CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT)
-orig_flow:
-#endif
-#endif // #if defined(CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT) || defined(CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT)
 
 out2:
 	unlock_mount(mp);
@@ -3045,7 +3063,7 @@ void *copy_mount_options(const void __user * data)
 	 * the remainder of the page.
 	 */
 	/* copy_from_user cannot cross TASK_SIZE ! */
-	size = TASK_SIZE - (unsigned long)data;
+	size = TASK_SIZE - (unsigned long)untagged_addr(data);
 	if (size > PAGE_SIZE)
 		size = PAGE_SIZE;
 
@@ -3084,6 +3102,7 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 	struct path path;
 	unsigned int mnt_flags = 0, sb_flags;
 	int retval = 0;
+
 	/* Discard magic */
 	if ((flags & MS_MGC_MSK) == MS_MGC_VAL)
 		flags &= ~MS_MGC_MSK;
@@ -3110,8 +3129,8 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 		goto dput_out;
 
 	/* Default to relatime unless overriden */
-	if (!(flags & MS_NOATIME))
-		mnt_flags |= MNT_RELATIME;
+	//if (!(flags & MS_NOATIME))
+		//mnt_flags |= MNT_RELATIME;
 
 	/* Separate the per-mountpoint flags */
 	if (flags & MS_NOSUID)
@@ -3120,9 +3139,9 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 		mnt_flags |= MNT_NODEV;
 	if (flags & MS_NOEXEC)
 		mnt_flags |= MNT_NOEXEC;
-	if (flags & MS_NOATIME)
+	//if (flags & MS_NOATIME)
 		mnt_flags |= MNT_NOATIME;
-	if (flags & MS_NODIRATIME)
+	//if (flags & MS_NODIRATIME)
 		mnt_flags |= MNT_NODIRATIME;
 	if (flags & MS_STRICTATIME)
 		mnt_flags &= ~(MNT_RELATIME | MNT_NOATIME);
@@ -3158,15 +3177,6 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 	else
 		retval = do_new_mount(&path, type_page, sb_flags, mnt_flags,
 				      dev_name, data_page);
-#ifdef CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT
-	// For both Legacy and Magic Mount KernelSU
-	if (!retval && susfs_is_auto_add_sus_ksu_default_mount_enabled &&
-			(!(flags & (MS_REMOUNT | MS_BIND | MS_SHARED | MS_PRIVATE | MS_SLAVE | MS_UNBINDABLE)))) {
-		if (susfs_is_current_ksu_domain()) {
-			susfs_auto_add_sus_ksu_default_mount(dir_name);
-		}
-	}
-#endif
 dput_out:
 	path_put(&path);
 	return retval;
