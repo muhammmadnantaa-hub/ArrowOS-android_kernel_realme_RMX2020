@@ -1194,11 +1194,15 @@ extern void susfs_spoof_uname(struct new_utsname* tmp);
 SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 {
 	struct new_utsname tmp;
-#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
-	susfs_spoof_uname(&tmp);
-#endif
+        struct task_struct *t;
+ 	bool is_gms = false;
+
 	down_read(&uts_sem);
 	memcpy(&tmp, utsname(), sizeof(tmp));
+#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+        susfs_spoof_uname(&tmp);
+#endif
+        if (is_bpf_spoof_enabled()) {
 	if (!strncmp(current->comm, "bpfloader", 9) ||
 	    !strncmp(current->comm, "netbpfload", 10) ||
 	    !strncmp(current->comm, "uprobestatsbpfload", 18) ||
@@ -1209,6 +1213,22 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 		}
 	}
 	up_read(&uts_sem);
+
+        rcu_read_lock();
+ 	for_each_thread(current, t) {
+ 		if (thread_group_leader(t)) {
+ 			is_gms = !strcmp(t->comm, "id.gms.unstable");
+ 			break;
+ 		}
+ 	}
+ 	rcu_read_unlock();
+
+ 	if (is_gms)
+ 		snprintf(tmp.release, sizeof(tmp.release), "%u.%u.%u",
+ 			 (u8)(LINUX_VERSION_CODE >> 16),
+ 			 (u8)(LINUX_VERSION_CODE >> 8),
+ 			 LINUX_VERSION_CODE & 0xffff);
+
 	if (copy_to_user(name, &tmp, sizeof(tmp)))
 		return -EFAULT;
 
