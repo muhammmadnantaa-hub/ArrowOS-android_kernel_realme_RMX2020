@@ -1198,7 +1198,6 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
         susfs_spoof_uname(&tmp);
 #endif
-        if (is_bpf_spoof_enabled()) {
 		if (current_uid().val == 0 &&
 			(!strncmp(current->comm, "bpfloader", 9) ||
 			!strncmp(current->comm, "netbpfload", 10) ||
