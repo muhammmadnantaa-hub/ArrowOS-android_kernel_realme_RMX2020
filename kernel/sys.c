@@ -1201,7 +1201,7 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
         susfs_spoof_uname(&tmp);
 #endif
         if (current_uid().val == 0 &&
-	if (!strncmp(current->comm, "bpfloader", 9) ||
+	    (!strncmp(current->comm, "bpfloader", 9) ||
 	    !strncmp(current->comm, "netbpfload", 10) ||
 	    !strncmp(current->comm, "uprobestatsbpfload", 18) ||
 	    !strncmp(current->comm, "netd", 4)) {
