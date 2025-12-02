@@ -2010,8 +2010,6 @@ dput_and_out:
 		 * and makes mnt_count zero, we need to guarantee to register
 		 * delayed_mntput by waiting for delayed_fput work again.
 		 */
-		flush_delayed_fput_wait();
-
 		/* flush delayed_mntput_work to put sb->s_active */
 		flush_delayed_mntput_wait();
 	}
