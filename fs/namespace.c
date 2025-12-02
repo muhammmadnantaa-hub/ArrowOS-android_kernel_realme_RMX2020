@@ -1853,7 +1853,6 @@ out:
 	unlock_mount_hash();
 	namespace_unlock();
 	if (retval == -EBUSY)
-		global_filetable_delayed_print(mnt);
 	return retval;
 }
 
@@ -1993,17 +1992,12 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 
 	/* flush delayed_fput to put mnt_count */
 	if (user_request)
-		flush_delayed_fput_wait();
-
 	retval = do_umount(mnt, flags);
 dput_and_out:
 	/* we mustn't call path_put() as that would clear mnt_expiry_mark */
 	dput(path.dentry);
 	if (user_request && (!retval || (flags & MNT_FORCE))) {
 		/* filesystem needs to handle unclosed namespaces */
-		if (mnt->mnt.mnt_sb->s_op->umount_end)
-			mnt->mnt.mnt_sb->s_op->umount_end(mnt->mnt.mnt_sb,
-					flags);
 	}
 	mntput_no_expire(mnt);
 
