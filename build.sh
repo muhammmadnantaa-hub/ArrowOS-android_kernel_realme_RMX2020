@@ -7,7 +7,7 @@ DATE="$(TZ=Asia/Jakarta date +%Y%m%d%H%M%S)"
 KERNEL_NAME="Rk${BUILD_TYPE}-${DATE}.zip"
 
 # Clone SukiSU repo
-if [ ! -d "KernelSU" ]; then curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/main/kernel/setup.sh" | bash -s susfs-rksu-master; fi
+curl -LSs "https://raw.githubusercontent.com/kylieeXD/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
 
 function KERNEL_COMPILE() {
         if [ "$1" == "install" ]; then
