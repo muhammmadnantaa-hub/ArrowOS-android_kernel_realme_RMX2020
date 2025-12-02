@@ -20,9 +20,6 @@ function KERNEL_COMPILE() {
 	export KBUILD_BUILD_HOST=#rmx
 	export KBUILD_BUILD_USER=anonim
 
-	# Create output directory and do a clean build
-	rm -rf out && mkdir -p out
-
 	# Download clang if not present
 	git clone --depth=1 https://gitlab.com/sarthakroy2002/android_prebuilts_clang_host_linux-x86_clang-r437112b clang
         git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 los-4.9-64
