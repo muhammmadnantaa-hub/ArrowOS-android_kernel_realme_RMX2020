@@ -51,7 +51,7 @@ function KERNEL_COMPILE() {
 function KERNEL_RESULT() {
 	# Create anykernel
 	rm -rf anykernel
-	git clone https://github.com/muhammmadnantaa-hub6/AnyKernel.git anykernel
+	git clone https://github.com/muhammmadnantaa-hub/AnyKernel.git anykernel
 
 	# Copying image
 	cp ${KERNEL_PATH}/Image.gz-dtb anykernel/
