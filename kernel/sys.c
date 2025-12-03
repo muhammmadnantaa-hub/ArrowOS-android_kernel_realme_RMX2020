@@ -1202,7 +1202,6 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 		strcpy(tmp.release, "5.4.186");
 		pr_info("fake uname: %s/%d release=%s\n",
 			current->comm, current->pid, tmp.release);
-		}
 	}
 	up_read(&uts_sem);
 #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
