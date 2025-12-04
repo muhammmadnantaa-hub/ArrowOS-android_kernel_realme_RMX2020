@@ -182,7 +182,6 @@ EXPORT_SYMBOL(vfs_statx_fd);
  * 0 will be returned on success, and a -ve error code if unsuccessful.
  */
 #ifdef CONFIG_KSU
-extern bool susfs_is_current_proc_umounted(void);
 extern bool __ksu_is_allow_uid_for_current(uid_t uid);
 extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
 #endif
