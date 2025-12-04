@@ -11,7 +11,7 @@ DATE="$(TZ=Asia/Jakarta date +%Y%m%d%H%M%S)"
 KERNEL_NAME="idk${BUILD_TYPE}-${DATE}.zip"
 
 # Clone SukiSU repo
-if [ ! -d "KernelSU" ]; then curl -LSs "https://raw.githubusercontent.com/littlepe/SukiSU-Ultra/mainline/kernel/setup.sh" | bash -s mainline; fi
+if [ ! -d "KernelSU" ]; then curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s main; fi
 
 function KERNEL_COMPILE() {
 	if [ "$1" == "install" ]; then
