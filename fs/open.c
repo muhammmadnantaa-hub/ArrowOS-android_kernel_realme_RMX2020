@@ -378,10 +378,6 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
 	unsigned int lookup_flags = LOOKUP_FOLLOW;
 
 #ifdef CONFIG_KSU
-	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
-#endif
-
-#ifdef CONFIG_KSU
     if (likely(susfs_is_current_proc_umounted())) {
         goto orig_flow;
     }
