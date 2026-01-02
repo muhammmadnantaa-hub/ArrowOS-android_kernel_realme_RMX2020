@@ -48,60 +48,7 @@ function KERNEL_COMPILE() {
                       CONFIG_NO_ERROR_ON_MISMATCH=y
 }
 
-function KERNEL_PATCH() {
-    # Simple Kernel Patcher Script
-    set -e  # Exit immediately if any command fails
-    echo "Starting kernel patching process..."
-
-    # Change to kernel directory
-    cd ${KERNEL_PATH} || {
-        echo "Error: Failed to enter kernel directory!" >&2
-        exit 1
-    }
-
-    # Download patcher
-    echo "Downloading patcher..."
-    
-    wget -q https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.12.2/patch_linux || {
-        echo "Error: Failed to download patcher!" >&2
-        exit 1
-    }
-
-    # Make patcher executable
-    chmod +x patch_linux
-
-    # Execute patcher
-    echo "Patching kernel image..."
-
-    ./patch_linux || {
-        echo "Error: Patching failed!" >&2
-        exit 1
-    }
-
-    # Combine all dtb
-    find dts -name '*.dtb' -exec cat {} + >dtb
-
-    # Replace original image
-    if [ -f "oImage" ]; then
-		rm -rf Image*
-        mv oImage Image
-        gzip -c Image > Image.gz
-		cat Image.gz dtb > Image.gz-dtb
-    fi
-
-    echo "Kernel patching completed successfully!"
-    cd - >/dev/null
-}
-
 function KERNEL_RESULT() {
-	# Check is build is successful
-	if [ ! -f ${KERNEL_PATH}/Image ]; then
-		exit 1
-	fi
-
-	# Apply kpm
-	KERNEL_PATCH
-
 	# Create anykernel
 	rm -rf anykernel
 	git clone https://github.com/muhammmadnantaa-hub/AnyKernel.git anykernel
